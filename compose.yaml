@@ -1,0 +1,16 @@
+services:
+  scheduler-dvm:
+    image: ${SCHEDULER_DVM_IMAGE:-ghcr.io/nogringo/scheduler_dvm:latest}
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DVM_DB_PATH: /data/scheduler.db
+    volumes:
+      - scheduler-dvm-data:/data
+
+volumes:
+  scheduler-dvm-data:
