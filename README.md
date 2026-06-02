@@ -10,8 +10,11 @@ The binary is configured with environment variables only.
 
 ```sh
 dart pub get
-DVM_PRIVATE_KEY=<hex-private-key> dart run bin/scheduler_dvm.dart
+DVM_PRIVATE_KEY=<hex-private-key-or-nsec> dart run bin/scheduler_dvm.dart
 ```
+
+`DVM_PRIVATE_KEY` accepts either a 64 character hex private key or a NIP-19
+`nsec1...` private key.
 
 Optional configuration:
 

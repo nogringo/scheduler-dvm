@@ -6,9 +6,17 @@ import 'package:scheduler_dvm/scheduler_dvm.dart';
 import 'package:sembast/sembast_io.dart';
 
 Future<void> main() async {
-  final privateKey = Platform.environment['DVM_PRIVATE_KEY'];
-  if (privateKey == null || privateKey.trim().isEmpty) {
+  final privateKeyEnv = Platform.environment['DVM_PRIVATE_KEY'];
+  if (privateKeyEnv == null || privateKeyEnv.trim().isEmpty) {
     stderr.writeln('Missing DVM private key. Set DVM_PRIVATE_KEY.');
+    exitCode = 64;
+    return;
+  }
+  final String privateKey;
+  try {
+    privateKey = DvmPrivateKey.parse(privateKeyEnv).hex;
+  } on DvmPrivateKeyException catch (error) {
+    stderr.writeln(error.message);
     exitCode = 64;
     return;
   }
