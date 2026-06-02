@@ -35,14 +35,25 @@ metadata nor env fallback exists, the built-in defaults are used.
 
 ## Docker Compose
 
+Production pulls the published GHCR image:
+
 ```sh
 cp .env.example .env
 # edit DVM_PRIVATE_KEY
 docker compose up -d
 ```
 
-The compose file stores durable jobs in the `scheduler-dvm-data` volume and
-uses `ghcr.io/nogringo/scheduler_dvm:latest` by default.
+Local Compose builds from the repository:
+
+```sh
+cp .env.example .env
+# edit DVM_PRIVATE_KEY
+docker compose -f compose.local.yaml up --build
+```
+
+Both Compose files store durable jobs in the `scheduler-dvm-data` volume.
+`compose.yaml` uses `ghcr.io/nogringo/scheduler-dvm:latest`; `compose.local.yaml`
+uses the local `scheduler-dvm:local` image.
 
 ## Protocol
 
@@ -61,4 +72,5 @@ dart format --set-exit-if-changed .
 dart analyze
 dart test
 docker compose config
+docker compose -f compose.local.yaml config
 ```

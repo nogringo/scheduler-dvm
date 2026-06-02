@@ -1,6 +1,8 @@
 services:
   scheduler-dvm:
-    image: ghcr.io/nogringo/scheduler-dvm:latest
+    image: scheduler-dvm:local
+    build:
+      context: .
     restart: unless-stopped
     env_file:
       - path: .env
