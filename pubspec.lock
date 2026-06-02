@@ -341,10 +341,10 @@ packages:
     dependency: "direct dev"
     description:
       name: nostr_event_scheduler
-      sha256: db466a017e1ff89be893eb17bc1900670ae712d3d2d393f4134fb12498781262
+      sha256: "1d1269f0d34db6b70982e9efa00cbe6b2b47466388f4d3fe35d83b597f6b41c0"
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.0"
+    version: "0.1.1"
   package_config:
     dependency: transitive
     description:
