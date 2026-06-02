@@ -15,5 +15,5 @@ dev_dependencies:
   bip340: ">=0.3.0 <0.4.0"
   broadcast_queue_shim_for_ndk: ^0.2.1
   lints: ^6.0.0
-  nostr_event_scheduler: ^0.1.0
+  nostr_event_scheduler: ^0.1.1
   test: ^1.25.6
