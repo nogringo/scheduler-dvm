@@ -56,7 +56,8 @@ docker compose -f compose.local.yaml up --build
 
 Both Compose files store durable jobs in the `scheduler-dvm-data` volume.
 `compose.yaml` uses `ghcr.io/nogringo/scheduler-dvm:latest`; `compose.local.yaml`
-uses the local `scheduler-dvm:local` image.
+uses the local `scheduler-dvm:local` image. The GHCR workflow publishes
+`linux/amd64` and `linux/arm64` images.
 
 ## Protocol
 
