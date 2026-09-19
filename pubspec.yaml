@@ -1,6 +1,6 @@
 name: scheduler_dvm
 description: Scheduler DVM for publishing signed Nostr events at a future time.
-version: 0.1.0
+version: 0.2.0
 repository: https://github.com/nogringo/scheduler-dvm
 
 environment:
@@ -8,13 +8,8 @@ environment:
 
 dependencies:
   ndk: ^0.10.0-dev.5
-  path: ^1.9.1
+  nostr_scheduler_dvm: ^0.2.2
   sembast: ^3.8.10
 
 dev_dependencies:
-  bip340: ^0.3.1
-  broadcast_queue_shim_for_ndk: ^0.6.0
   lints: ^6.1.0
-  nostr_event_scheduler: ^0.5.1
-  sync_engine_shim_for_ndk: ^0.7.0
-  test: ^1.32.0

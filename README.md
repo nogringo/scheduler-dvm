@@ -74,7 +74,6 @@ uses the local `scheduler-dvm:local` image. The GHCR workflow publishes
 ```sh
 dart format --set-exit-if-changed .
 dart analyze
-dart test
 docker compose config
 docker compose -f compose.local.yaml config
 ```

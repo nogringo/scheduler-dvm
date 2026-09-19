@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:ndk/ndk.dart';
-import 'package:scheduler_dvm/scheduler_dvm.dart';
+import 'package:nostr_scheduler_dvm/nostr_scheduler_dvm.dart';
 import 'package:sembast/sembast_io.dart';
 
 Future<void> main() async {
@@ -29,24 +29,15 @@ Future<void> main() async {
   await Directory(dbPath).parent.create(recursive: true);
   final db = await databaseFactoryIo.openDatabase(dbPath);
 
-  final signerFactory = const Bip340EventSignerFactory();
-  final pubkey = signerFactory.derivePublicKey(privateKey);
-  final signer = signerFactory.create(
-    privateKey: privateKey,
-    publicKey: pubkey,
-  );
-  final verifier = Bip340EventVerifier();
-  final ndk = Ndk(_createNdkConfig(verifier, bootstrapRelays));
+  final pubkey = const Bip340EventSignerFactory().derivePublicKey(privateKey);
+  final ndk = Ndk(_createNdkConfig(Bip340EventVerifier(), bootstrapRelays));
   ndk.accounts.loginPrivateKey(pubkey: pubkey, privkey: privateKey);
 
-  final store = SembastDvmJobStore(db, closeDatabase: true);
   final announce = _envBool('DVM_ANNOUNCE_NIP89', defaultValue: true);
   final dvm = SchedulerDvm(
     SchedulerDvmConfig(
       ndk: ndk,
-      signer: signer,
-      store: store,
-      eventVerifier: verifier,
+      database: db,
       bootstrapRelays: bootstrapRelays,
       name: Platform.environment['DVM_NAME'],
       about: Platform.environment['DVM_ABOUT'],
@@ -90,7 +81,7 @@ Future<void> main() async {
   }
   await dvm.dispose();
   await ndk.destroy();
-  await signer.dispose();
+  await db.close();
 }
 
 NdkConfig _createNdkConfig(
