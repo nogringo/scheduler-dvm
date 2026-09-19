@@ -7,13 +7,14 @@ environment:
   sdk: ^3.12.1
 
 dependencies:
-  ndk: 0.8.4-dev.1
+  ndk: ^0.10.0-dev.5
   path: ^1.9.1
-  sembast: ^3.8.7
+  sembast: ^3.8.10
 
 dev_dependencies:
-  bip340: ">=0.3.0 <0.4.0"
-  broadcast_queue_shim_for_ndk: ^0.2.1
-  lints: ^6.0.0
-  nostr_event_scheduler: ^0.1.1
-  test: ^1.25.6
+  bip340: ^0.3.1
+  broadcast_queue_shim_for_ndk: ^0.6.0
+  lints: ^6.1.0
+  nostr_event_scheduler: ^0.5.1
+  sync_engine_shim_for_ndk: ^0.7.0
+  test: ^1.32.0

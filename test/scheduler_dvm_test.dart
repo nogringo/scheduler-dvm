@@ -16,6 +16,7 @@ import 'package:nostr_event_scheduler/nostr_event_scheduler.dart';
 import 'package:scheduler_dvm/scheduler_dvm.dart';
 import 'package:sembast/sembast_io.dart' as sembast_io;
 import 'package:sembast/sembast_memory.dart' as sembast_memory;
+import 'package:sync_engine_shim_for_ndk/sync_engine_shim_for_ndk.dart';
 import 'package:test/test.dart';
 
 import 'support/mock_relay.dart';
@@ -27,6 +28,7 @@ void main() {
   late Ndk clientNdk;
   late Ndk dvmNdk;
   late OfflineBroadcast clientBroadcast;
+  late SyncEngine clientSyncEngine;
   late EventScheduler clientScheduler;
   late SchedulerDvm dvm;
   late SembastDvmJobStore dvmStore;
@@ -71,12 +73,16 @@ void main() {
     clientBroadcast.start();
     broadcastsToDispose.add(clientBroadcast);
 
+    clientSyncEngine = SyncEngine(clientNdk, db: schedulerDb);
+    clientSyncEngine.start();
+
     clientScheduler = EventScheduler(
       ndk: clientNdk,
       broadcast: clientBroadcast,
+      syncEngine: clientSyncEngine,
       db: schedulerDb,
     );
-    await clientScheduler.startListening();
+    await clientScheduler.startListening(pubkey: clientKey.publicKey);
 
     final dvmDb = await sembast_memory.databaseFactoryMemory.openDatabase(
       'dvm-${relay.url}.db',
@@ -95,6 +101,7 @@ void main() {
 
   tearDown(() async {
     await clientScheduler.dispose();
+    await clientSyncEngine.dispose();
     for (final dvm in dvmsToDispose.reversed) {
       await dvm.dispose();
     }
@@ -150,7 +157,8 @@ void main() {
 
       final job = await clientScheduler.schedule(
         target,
-        dvmKey.publicKey,
+        [dvmKey.publicKey],
+        pubkey: clientKey.publicKey,
         at: DateTime.now().add(const Duration(minutes: 1)),
         relays: [relay.url],
       );
@@ -187,7 +195,8 @@ void main() {
 
     final job = await clientScheduler.schedule(
       target,
-      dvmKey.publicKey,
+      [dvmKey.publicKey],
+      pubkey: clientKey.publicKey,
       at: DateTime.now().add(const Duration(seconds: 1)),
       relays: [relay.url],
     );
@@ -217,7 +226,8 @@ void main() {
 
     final job = await clientScheduler.schedule(
       target,
-      dvmKey.publicKey,
+      [dvmKey.publicKey],
+      pubkey: clientKey.publicKey,
       at: DateTime.now().add(const Duration(seconds: 10)),
       relays: [relay.url],
     );
@@ -227,7 +237,7 @@ void main() {
       return stored?.status == DvmJobStatus.scheduled;
     });
 
-    await clientScheduler.cancel(job.jobId);
+    await clientScheduler.cancel(job.jobId, pubkey: clientKey.publicKey);
 
     await _waitFor(() async {
       final stored = await dvmStore.getJob(job.jobId);
@@ -288,7 +298,8 @@ void main() {
 
     final job = await clientScheduler.schedule(
       target,
-      dvmKey.publicKey,
+      [dvmKey.publicKey],
+      pubkey: clientKey.publicKey,
       at: DateTime.now().add(const Duration(minutes: 1)),
       relays: [relay.url],
     );
@@ -314,7 +325,8 @@ void main() {
 
     final job = await clientScheduler.schedule(
       target,
-      dvmKey.publicKey,
+      [dvmKey.publicKey],
+      pubkey: clientKey.publicKey,
       at: DateTime.now().add(const Duration(seconds: 1)),
       relays: ['ws://127.0.0.1:59999'],
     );
@@ -371,7 +383,8 @@ void main() {
     );
     await clientScheduler.schedule(
       target,
-      dvmKey.publicKey,
+      [dvmKey.publicKey],
+      pubkey: clientKey.publicKey,
       at: DateTime.now().add(const Duration(seconds: 2)),
       relays: [relay.url],
     );
@@ -467,7 +480,6 @@ Future<void> _injectMetadata(Ndk ndk, MockRelay relay, KeyPair keyPair) async {
   );
   relay.storedEvents.add(signed);
   await ndk.config.cache.saveEvent(signed);
-  await ndk.config.cache.saveMetadata(Metadata.fromEvent(signed));
 }
 
 Future<Nip01Event> _signedTextEvent(
