@@ -20,7 +20,10 @@ Optional configuration:
 
 - `DVM_BOOTSTRAP_RELAYS`, optional: override relays used to discover the DVM
   pubkey's NIP-65 relay list. If omitted, NDK uses its default bootstrap relays.
-- `DVM_DB_PATH`, default `/data/scheduler.db`
+- `DVM_DB_PATH`, default `/data/scheduler.db`: SQLite file holding the jobs.
+  The NDK cache (`ndk_cache.db`) and the sync engine state (`sync_engine.db`)
+  are stored next to it. A sembast job file left at this path by an older
+  version is imported on startup and kept as `scheduler.db.sembast.bak`.
 - `DVM_NAME`, optional fallback if the DVM `kind:0` has no `name` or
   `display_name`
 - `DVM_ABOUT`, optional fallback if the DVM `kind:0` has no `about`

@@ -1,3 +1,11 @@
+## 0.3.0
+
+- Store DVM jobs in SQLite (`sqlite3`) instead of sembast. An existing sembast
+  job file at `DVM_DB_PATH` is imported on startup and kept as a `.sembast.bak`
+  backup.
+- Wire the persistent NDK cache and the sync engine required by
+  `nostr_scheduler_dvm` 0.3.0.
+
 ## 0.2.0
 
 - Depend on the `nostr_scheduler_dvm` package for the DVM core instead of

@@ -3,7 +3,10 @@ import 'dart:io';
 
 import 'package:ndk/ndk.dart';
 import 'package:nostr_scheduler_dvm/nostr_scheduler_dvm.dart';
-import 'package:sembast/sembast_io.dart';
+import 'package:path/path.dart' as p;
+import 'package:scheduler_dvm/sqlite_dvm_job_store.dart';
+import 'package:sembast/sembast_io.dart' hide Filter;
+import 'package:sync_engine_shim_for_ndk/sync_engine_shim_for_ndk.dart';
 
 Future<void> main() async {
   final privateKeyEnv = Platform.environment['DVM_PRIVATE_KEY'];
@@ -26,18 +29,30 @@ Future<void> main() async {
   );
 
   final dbPath = Platform.environment['DVM_DB_PATH'] ?? '/data/scheduler.db';
-  await Directory(dbPath).parent.create(recursive: true);
-  final db = await databaseFactoryIo.openDatabase(dbPath);
+  final dataDir = p.dirname(dbPath);
+  await Directory(dataDir).create(recursive: true);
+  final store = await SqliteDvmJobStore.open(dbPath);
+  final cache = await SembastCacheManager.create(
+    databasePath: dataDir,
+    databaseName: 'ndk_cache',
+  );
+  final syncDb = await databaseFactoryIo.openDatabase(
+    p.join(dataDir, 'sync_engine.db'),
+  );
 
   final pubkey = const Bip340EventSignerFactory().derivePublicKey(privateKey);
-  final ndk = Ndk(_createNdkConfig(Bip340EventVerifier(), bootstrapRelays));
+  final ndk = Ndk(
+    _createNdkConfig(Bip340EventVerifier(), cache, bootstrapRelays),
+  );
   ndk.accounts.loginPrivateKey(pubkey: pubkey, privkey: privateKey);
+  final syncEngine = SyncEngine(ndk, db: syncDb)..start();
 
   final announce = _envBool('DVM_ANNOUNCE_NIP89', defaultValue: true);
   final dvm = SchedulerDvm(
     SchedulerDvmConfig(
       ndk: ndk,
-      database: db,
+      store: store,
+      syncEngine: syncEngine,
       bootstrapRelays: bootstrapRelays,
       name: Platform.environment['DVM_NAME'],
       about: Platform.environment['DVM_ABOUT'],
@@ -80,21 +95,23 @@ Future<void> main() async {
     await subscription.cancel();
   }
   await dvm.dispose();
+  await syncEngine.dispose();
   await ndk.destroy();
-  await db.close();
+  await syncDb.close();
 }
 
 NdkConfig _createNdkConfig(
   EventVerifier verifier,
+  CacheManager cache,
   List<String> bootstrapRelays,
 ) {
   if (bootstrapRelays.isEmpty) {
-    return NdkConfig(eventVerifier: verifier, cache: MemCacheManager());
+    return NdkConfig(eventVerifier: verifier, cache: cache);
   }
 
   return NdkConfig(
     eventVerifier: verifier,
-    cache: MemCacheManager(),
+    cache: cache,
     bootstrapRelays: bootstrapRelays,
   );
 }
