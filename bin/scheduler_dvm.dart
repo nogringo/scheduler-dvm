@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:ndk/ndk.dart';
 import 'package:nostr_scheduler_dvm/nostr_scheduler_dvm.dart';
 import 'package:path/path.dart' as p;
+import 'package:scheduler_dvm/sqlite_cache_manager.dart';
 import 'package:scheduler_dvm/sqlite_dvm_job_store.dart';
 import 'package:sembast/sembast_io.dart' hide Filter;
 import 'package:sync_engine_shim_for_ndk/sync_engine_shim_for_ndk.dart';
@@ -32,10 +33,7 @@ Future<void> main() async {
   final dataDir = p.dirname(dbPath);
   await Directory(dataDir).create(recursive: true);
   final store = await SqliteDvmJobStore.open(dbPath);
-  final cache = await SembastCacheManager.create(
-    databasePath: dataDir,
-    databaseName: 'ndk_cache',
-  );
+  final cache = await SqliteCacheManager.open(p.join(dataDir, 'ndk_cache.db'));
   final syncDb = await databaseFactoryIo.openDatabase(
     p.join(dataDir, 'sync_engine.db'),
   );
@@ -97,6 +95,7 @@ Future<void> main() async {
   await dvm.dispose();
   await syncEngine.dispose();
   await ndk.destroy();
+  await cache.close();
   await syncDb.close();
 }
 

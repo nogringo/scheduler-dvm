@@ -5,6 +5,8 @@
   backup.
 - Wire the persistent NDK cache and the sync engine required by
   `nostr_scheduler_dvm` 0.3.0.
+- Back the NDK cache with SQLite (`SqliteCacheManager`) instead of sembast. A
+  former sembast `ndk_cache.db` is deleted on startup and rebuilt from relays.
 
 ## 0.2.0
 

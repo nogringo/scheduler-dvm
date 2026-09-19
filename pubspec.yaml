@@ -16,4 +16,9 @@ dependencies:
 
 dev_dependencies:
   lints: ^6.1.0
+  ndk_cache_manager_test_suite:
+    git:
+      url: https://github.com/relaystr/ndk
+      path: packages/ndk_cache_manager_test_suite
+      ref: ndk-v0.10.0-dev.5
   test: ^1.32.0

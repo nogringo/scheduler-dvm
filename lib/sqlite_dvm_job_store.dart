@@ -5,9 +5,10 @@ import 'package:nostr_scheduler_dvm/nostr_scheduler_dvm.dart';
 import 'package:sembast/sembast_io.dart' as sembast;
 import 'package:sqlite3/sqlite3.dart';
 
+import 'sqlite_file.dart';
+
 class SqliteDvmJobStore implements DvmJobStore {
   static const int _schemaVersion = 1;
-  static const String _sqliteHeader = 'SQLite format 3\u0000';
 
   final Database _db;
   final bool _closeDatabase;
@@ -123,23 +124,12 @@ class SqliteDvmJobStore implements DvmJobStore {
 
   static Future<List<DvmJob>> _takeLegacySembastJobs(String path) async {
     final file = File(path);
-    if (!await file.exists() || await _isSqliteFile(file)) return const [];
+    if (!await file.exists() || await isSqliteFile(file)) return const [];
 
     final legacyDb = await sembast.databaseFactoryIo.openDatabase(path);
     final jobs = await SembastDvmJobStore(legacyDb).listJobs();
     await legacyDb.close();
     await file.rename('$path.sembast.bak');
     return jobs;
-  }
-
-  static Future<bool> _isSqliteFile(File file) async {
-    if (await file.length() == 0) return true;
-    final raf = await file.open();
-    try {
-      final header = await raf.read(_sqliteHeader.length);
-      return String.fromCharCodes(header) == _sqliteHeader;
-    } finally {
-      await raf.close();
-    }
   }
 }
