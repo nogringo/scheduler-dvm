@@ -1,3 +1,15 @@
+## 0.4.0
+
+- Upgrade to `nostr_scheduler_dvm` 0.4.0, which keys jobs by their request
+  event id, filters the target relays a request may ask for, rejects a
+  `schedule_at` beyond ten years, drops a backlog older than a week instead of
+  publishing it on restart, and decides a request once instead of once per
+  start.
+- Key the SQLite jobs table on `request_event_id` and look a `job_id` up per
+  client. Schema 1 keyed jobs on the client-chosen `job_id` alone, so two
+  clients picking the same one overwrote each other's job. An existing schema 1
+  database is rekeyed on startup.
+
 ## 0.3.0
 
 - Store DVM jobs in SQLite (`sqlite3`) instead of sembast. An existing sembast

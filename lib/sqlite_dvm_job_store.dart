@@ -8,7 +8,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'sqlite_file.dart';
 
 class SqliteDvmJobStore implements DvmJobStore {
-  static const int _schemaVersion = 1;
+  static const int _schemaVersion = 2;
 
   final Database _db;
   final bool _closeDatabase;
@@ -29,67 +29,99 @@ class SqliteDvmJobStore implements DvmJobStore {
 
   void _migrate() {
     if (_db.userVersion >= _schemaVersion) return;
-    _db.execute('''
-      CREATE TABLE IF NOT EXISTS jobs (
-        job_id TEXT PRIMARY KEY,
-        request_event_id TEXT NOT NULL,
-        status TEXT NOT NULL,
-        schedule_at INTEGER NOT NULL,
-        data TEXT NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS jobs_request_event_id
-        ON jobs(request_event_id);
-      CREATE INDEX IF NOT EXISTS jobs_status_schedule_at
-        ON jobs(status, schedule_at);
-    ''');
-    _db.userVersion = _schemaVersion;
+    _db.execute('BEGIN');
+    try {
+      final rekeyed = _db.userVersion == 1 ? _dropSchemaV1() : const <DvmJob>[];
+      _db.execute('''
+        CREATE TABLE IF NOT EXISTS jobs (
+          request_event_id TEXT PRIMARY KEY,
+          job_id TEXT NOT NULL,
+          client_pubkey TEXT NOT NULL,
+          status TEXT NOT NULL,
+          schedule_at INTEGER NOT NULL,
+          data TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS jobs_client_pubkey_job_id
+          ON jobs(client_pubkey, job_id);
+        CREATE INDEX IF NOT EXISTS jobs_status_schedule_at
+          ON jobs(status, schedule_at);
+      ''');
+      _db.userVersion = _schemaVersion;
+      _insertJobs(rekeyed);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  /// Schema 1 keyed jobs by their `job_id`, which clients pick and only holds
+  /// per client, so one client's job could overwrite another's.
+  List<DvmJob> _dropSchemaV1() {
+    final jobs = _selectJobs('SELECT data FROM jobs');
+    _db.execute('DROP TABLE jobs');
+    return jobs;
   }
 
   @override
   Future<void> putJob(DvmJob job) async => _putJobs([job]);
 
   void _putJobs(List<DvmJob> jobs) {
+    _db.execute('BEGIN');
+    try {
+      _insertJobs(jobs);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  void _insertJobs(List<DvmJob> jobs) {
+    if (jobs.isEmpty) return;
     final statement = _db.prepare('''
-      INSERT INTO jobs (job_id, request_event_id, status, schedule_at, data)
-      VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT(job_id) DO UPDATE SET
-        request_event_id = excluded.request_event_id,
+      INSERT INTO jobs (
+        request_event_id, job_id, client_pubkey, status, schedule_at, data
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(request_event_id) DO UPDATE SET
+        job_id = excluded.job_id,
+        client_pubkey = excluded.client_pubkey,
         status = excluded.status,
         schedule_at = excluded.schedule_at,
         data = excluded.data
     ''');
-    _db.execute('BEGIN');
     try {
       for (final job in jobs) {
         statement.execute([
-          job.jobId,
           job.requestEventId,
+          job.jobId,
+          job.clientPubkey,
           job.status.name,
           job.scheduleAt,
           jsonEncode(job.toJson()),
         ]);
       }
-      _db.execute('COMMIT');
-    } catch (_) {
-      _db.execute('ROLLBACK');
-      rethrow;
     } finally {
       statement.close();
     }
   }
 
   @override
-  Future<DvmJob?> getJob(String jobId) async {
-    return _selectJobs('SELECT data FROM jobs WHERE job_id = ?', [
-      jobId,
+  Future<DvmJob?> getJobByRequestEventId(String requestEventId) async {
+    return _selectJobs('SELECT data FROM jobs WHERE request_event_id = ?', [
+      requestEventId,
     ]).firstOrNull;
   }
 
   @override
-  Future<DvmJob?> getJobByRequestEventId(String requestEventId) async {
+  Future<DvmJob?> getJobByClientJobId({
+    required String clientPubkey,
+    required String jobId,
+  }) async {
     return _selectJobs(
-      'SELECT data FROM jobs WHERE request_event_id = ? LIMIT 1',
-      [requestEventId],
+      'SELECT data FROM jobs WHERE client_pubkey = ? AND job_id = ? LIMIT 1',
+      [clientPubkey, jobId],
     ).firstOrNull;
   }
 

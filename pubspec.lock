@@ -342,10 +342,10 @@ packages:
     dependency: "direct main"
     description:
       name: nostr_scheduler_dvm
-      sha256: "265a5b38d200a4512edead9ffd904af21923eaf001f50bb3b445fe5c293c7ffd"
+      sha256: "160cca6e38ebb0926a754cfc99083f5fb04f6b3937835a77d4aaa1b0af531b70"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.0"
+    version: "0.4.0"
   package_config:
     dependency: transitive
     description:

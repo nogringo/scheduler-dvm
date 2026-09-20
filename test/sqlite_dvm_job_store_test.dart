@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:ndk/ndk.dart';
@@ -10,13 +11,15 @@ import 'package:test/test.dart';
 
 DvmJob job(
   String id, {
+  String clientPubkey = 'client',
+  String? requestEventId,
   int scheduleAt = 100,
   DvmJobStatus status = DvmJobStatus.scheduled,
 }) {
   return DvmJob(
     jobId: id,
-    requestEventId: 'request-$id',
-    clientPubkey: 'client',
+    requestEventId: requestEventId ?? 'request-$id',
+    clientPubkey: clientPubkey,
     dvmPubkey: 'dvm',
     scheduleAt: scheduleAt,
     targetEvent: Nip01Event(
@@ -37,6 +40,31 @@ DvmJob job(
   );
 }
 
+void writeSchemaV1Job(Database db, DvmJob job) {
+  db.execute('''
+    CREATE TABLE IF NOT EXISTS jobs (
+      job_id TEXT PRIMARY KEY,
+      request_event_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      schedule_at INTEGER NOT NULL,
+      data TEXT NOT NULL
+    );
+  ''');
+  db.userVersion = 1;
+  db.execute(
+    'INSERT OR REPLACE INTO jobs '
+    '(job_id, request_event_id, status, schedule_at, data) '
+    'VALUES (?, ?, ?, ?, ?)',
+    [
+      job.jobId,
+      job.requestEventId,
+      job.status.name,
+      job.scheduleAt,
+      jsonEncode(job.toJson()),
+    ],
+  );
+}
+
 void main() {
   late SqliteDvmJobStore store;
 
@@ -46,20 +74,61 @@ void main() {
 
   tearDown(() => store.close());
 
-  test('puts and gets a job', () async {
+  test('puts and gets a job by client job id', () async {
     await store.putJob(job('a'));
 
-    final loaded = await store.getJob('a');
+    final loaded = await store.getJobByClientJobId(
+      clientPubkey: 'client',
+      jobId: 'a',
+    );
     expect(loaded?.toJson(), job('a').toJson());
-    expect(await store.getJob('missing'), isNull);
+    expect(
+      await store.getJobByClientJobId(clientPubkey: 'client', jobId: 'missing'),
+      isNull,
+    );
+    expect(
+      await store.getJobByClientJobId(clientPubkey: 'other', jobId: 'a'),
+      isNull,
+    );
   });
 
-  test('upserts on the job id', () async {
+  test('upserts on the request event id', () async {
     await store.putJob(job('a'));
     await store.putJob(job('a', status: DvmJobStatus.published));
 
     expect(await store.listJobs(), hasLength(1));
-    expect((await store.getJob('a'))?.status, DvmJobStatus.published);
+    expect(
+      (await store.getJobByClientJobId(
+        clientPubkey: 'client',
+        jobId: 'a',
+      ))?.status,
+      DvmJobStatus.published,
+    );
+  });
+
+  test('keeps the jobs of two clients sharing a job id', () async {
+    await store.putJob(
+      job('1', clientPubkey: 'alice', requestEventId: 'request-alice'),
+    );
+    await store.putJob(
+      job('1', clientPubkey: 'bob', requestEventId: 'request-bob'),
+    );
+
+    expect(await store.listJobs(), hasLength(2));
+    expect(
+      (await store.getJobByClientJobId(
+        clientPubkey: 'alice',
+        jobId: '1',
+      ))?.requestEventId,
+      'request-alice',
+    );
+    expect(
+      (await store.getJobByClientJobId(
+        clientPubkey: 'bob',
+        jobId: '1',
+      ))?.requestEventId,
+      'request-bob',
+    );
   });
 
   test('finds a job by request event id', () async {
@@ -87,6 +156,26 @@ void main() {
     ]);
   });
 
+  test('rekeys a schema 1 database on the request event id', () async {
+    final db = sqlite3.openInMemory();
+    writeSchemaV1Job(db, job('a'));
+    final migrated = SqliteDvmJobStore(db, closeDatabase: true);
+
+    expect((await migrated.getJobByRequestEventId('request-a'))?.jobId, 'a');
+    expect(
+      (await migrated.getJobByClientJobId(
+        clientPubkey: 'client',
+        jobId: 'a',
+      ))?.requestEventId,
+      'request-a',
+    );
+    await migrated.putJob(
+      job('a', clientPubkey: 'other', requestEventId: 'request-other'),
+    );
+    expect(await migrated.listJobs(), hasLength(2));
+    await migrated.close();
+  });
+
   group('open', () {
     late Directory dir;
 
@@ -103,7 +192,7 @@ void main() {
       await first.close();
 
       final second = await SqliteDvmJobStore.open(path);
-      expect((await second.getJob('a'))?.jobId, 'a');
+      expect((await second.getJobByRequestEventId('request-a'))?.jobId, 'a');
       await second.close();
     });
 

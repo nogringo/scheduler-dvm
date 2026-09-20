@@ -23,7 +23,8 @@ Optional configuration:
 - `DVM_DB_PATH`, default `/data/scheduler.db`: SQLite file holding the jobs.
   The SQLite NDK cache (`ndk_cache.db`) and the sync engine state
   (`sync_engine.db`) are stored next to it. A sembast job file left at this path by an older
-  version is imported on startup and kept as `scheduler.db.sembast.bak`.
+  version is imported on startup and kept as `scheduler.db.sembast.bak`, and a
+  database written by 0.3.0 is rekeyed on the request event id.
 - `DVM_NAME`, optional fallback if the DVM `kind:0` has no `name` or
   `display_name`
 - `DVM_ABOUT`, optional fallback if the DVM `kind:0` has no `about`
@@ -64,19 +65,7 @@ uses the local `scheduler-dvm:local` image. The GHCR workflow publishes
 
 ## Protocol
 
-- Schedule requests: `kind:5905`, NIP-44 encrypted to the DVM pubkey, tagged
-  with `["p", "<dvm_pubkey>"]` and `["encrypted"]`.
-- Feedback: `kind:7000`, encrypted with a one-time ephemeral key, tagged with
-  `["r", "<job_id>"]` and `["ephemeral-pubkey", "<ephemeral_pubkey>"]`.
-- Cancellation: standard `kind:5` delete event tagging the original
-  `kind:5905` event id.
-- Discovery: optional NIP-89 `kind:31990` announcement for `kind:5905`.
-
-## Checks
-
-```sh
-dart format --set-exit-if-changed .
-dart analyze
-docker compose config
-docker compose -f compose.local.yaml config
-```
+The wire format lives in the [Scheduler DVM spec](https://openspecs.uid.ovh/spec/npub1kg4sdvz3l4fr99n2jdz2vdxe2mpacva87hkdetv76ywacsfq5leqquw5te/scheduler-dvm):
+`kind:5905` schedule requests, `kind:5` cancellations, `kind:7000` feedback and
+the NIP-89 `kind:31990` announcement. This DVM implements it through
+[`nostr_scheduler_dvm`](https://pub.dev/packages/nostr_scheduler_dvm).
