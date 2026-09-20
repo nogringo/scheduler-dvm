@@ -25,10 +25,18 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
+RUN groupadd --system --gid 10001 dvm \
+  && useradd --system --uid 10001 --gid dvm --home-dir /app --no-create-home dvm
+
 WORKDIR /app
 
 COPY --from=build /app/build/cli/bundle /app
 
+# A fresh named volume inherits this ownership, so the dvm user can write to it.
+RUN install -d -o dvm -g dvm /data
+
 VOLUME ["/data"]
+
+USER dvm
 
 ENTRYPOINT ["/app/bin/scheduler_dvm"]

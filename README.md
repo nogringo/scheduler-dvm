@@ -63,6 +63,17 @@ Both Compose files store durable jobs in the `scheduler-dvm-data` volume.
 uses the local `scheduler-dvm:local` image. The GHCR workflow publishes
 `linux/amd64` and `linux/arm64` images.
 
+The container runs as the unprivileged user `dvm` (uid and gid 10001), which
+owns `/data`. A volume created by an earlier image is owned by root, so give it
+to `dvm` once before upgrading:
+
+```sh
+docker compose run --rm --user root --entrypoint chown scheduler-dvm -R 10001:10001 /data
+```
+
+A bind mount keeps its ownership on the host, so `chown -R 10001:10001` the
+host directory instead.
+
 ## Protocol
 
 The wire format lives in the [Scheduler DVM spec](https://openspecs.uid.ovh/spec/npub1kg4sdvz3l4fr99n2jdz2vdxe2mpacva87hkdetv76ywacsfq5leqquw5te/scheduler-dvm):

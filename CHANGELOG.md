@@ -9,6 +9,9 @@
   client. Schema 1 keyed jobs on the client-chosen `job_id` alone, so two
   clients picking the same one overwrote each other's job. An existing schema 1
   database is rekeyed on startup.
+- Run the container as the unprivileged user `dvm` (uid and gid 10001), which
+  owns `/data`. A volume created by an earlier image is owned by root and has
+  to be given to `dvm` once, see the README.
 
 ## 0.3.0
 
